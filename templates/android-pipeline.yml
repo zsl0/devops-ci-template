@@ -1,5 +1,5 @@
 include:
-  - project: 'cidevops/cidevops-newci-service'
+  - project: 'zsl0/devops-ci-template'
     ref: master
     file: 'templates/default-pipeline.yml'
 

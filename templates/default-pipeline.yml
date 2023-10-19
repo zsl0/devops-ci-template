@@ -1,17 +1,17 @@
 include:
-  - project: 'cidevops/cidevops-newci-service'
+  - project: 'zsl0/devops-ci-template'
     ref: master
     file: 'jobs/build.yml'
-  - project: 'cidevops/cidevops-newci-service'
+  - project: 'zsl0/devops-ci-template'
     ref: master
     file: 'jobs/test.yml'
-  - project: 'cidevops/cidevops-newci-service'
+  - project: 'zsl0/devops-ci-template'
     ref: master
     file: 'jobs/codeanalysis.yml'
-  - project: 'cidevops/cidevops-newci-service'
+  - project: 'zsl0/devops-ci-template'
     ref: master
     file: 'jobs/deploy.yml'
-  - project: 'cidevops/cidevops-newci-service'
+  - project: 'zsl0/devops-ci-template'
     ref: master
     file: 'jobs/artifactory.yml'
 
