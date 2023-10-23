@@ -95,6 +95,8 @@ cache:
 
 before_script:
   - export
+  - ls
+  - pwd
 
 
 ################# Jobs Configure #####################
