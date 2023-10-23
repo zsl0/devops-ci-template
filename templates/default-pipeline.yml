@@ -1,30 +1,24 @@
 include:
   - project: 'zsl0/devops-ci-template'
-    ref: master
+    ref: develop
     file: 'jobs/build.yml'
   - project: 'zsl0/devops-ci-template'
-    ref: master
+    ref: develop
     file: 'jobs/test.yml'
   - project: 'zsl0/devops-ci-template'
-    ref: master
-    file: 'jobs/codeanalysis.yml'
-  - project: 'zsl0/devops-ci-template'
-    ref: master
+    ref: develop
     file: 'jobs/deploy.yml'
-  - project: 'zsl0/devops-ci-template'
-    ref: master
-    file: 'jobs/artifactory.yml'
 
 variables:
   ## 全局配置
-  GIT_CLONE_PATH: ${CI_BUILDS_DIR}/builds/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/${CI_PIPELINE_ID}    
+  GIT_CLONE_PATH: ${CI_BUILDS_DIR}/builds/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/${CI_PIPELINE_ID}
   GIT_CHECKOUT: "false"
   CACHE_DIR: ""
 
   ## 作业控制
-  RUN_PIPELINE_BUILD: ""     #是否运行构建 yes/no 
-  RUN_PIPELINE_TEST: ""      #是否运行测试 yes/no 
-  RUN_CODE_ANALYSIS: ""      #是否代码扫描 yes/no 
+  RUN_PIPELINE_BUILD: ""     #是否运行构建 yes/no
+  RUN_PIPELINE_TEST: ""      #是否运行测试 yes/no
+  RUN_CODE_ANALYSIS: ""      #是否代码扫描 yes/no
   RUN_BUILD_IMAGE: ""        #是否生成镜像 yes/no
   RUN_DEPLOY_ARTIFACTS: ""   #是否上传制品 yes/no
   RUN_DEPLOY_K8S: ""         #是否发布K8S yes/no
@@ -34,10 +28,10 @@ variables:
   CURL_IMAGE: "curlimages/curl:7.70.0"
   SONAR_IMAGE: "sonarsource/sonar-scanner-cli:latest"
   KUBECTL_IMAGE: "lucj/kubectl:1.17.2"
-  
-  
+
+
   ## 构建测试参数
-  MAVEN_OPTS: ""                #maven构建参数 
+  MAVEN_OPTS: ""                #maven构建参数
   GRADLE_OPTS: ""               #gradle构建参数
   BUILD_SHELL: ''               #构建命令
 
@@ -52,7 +46,7 @@ variables:
   SONAR_SCAN_ARGS: "-Dsonar.sources=${SONAR_SOURCE_DIR}"            #项目扫描参数
 
   ## 构建镜像
-  CI_REGISTRY: 'registry.cn-beijing.aliyuncs.com'               #镜像仓库地址              
+  CI_REGISTRY: 'registry.cn-beijing.aliyuncs.com'               #镜像仓库地址
   CI_REGISTRY_USER: '610556220zy'                               #仓库用户信息
   #CI_REGISTRY_PASSWD: 'xxxxxxxx.'                              #仓库用户密码
   IMAGE_NAME: "${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}"     #镜像名称
@@ -86,31 +80,23 @@ workflow:
     ### 默认策略
     - when: always
 
-
-## 运行阶段  
+## 运行阶段
 stages:
   - build
   - test
-  - parallel01
-  - get_analysis_result
-  - deploy-artifact
-  - deploy-feature
-  - rollout-feature
-  - deploy-uat
-  - rollout-uat
-  - deploy-stag
-  - rollout-stag
-  - deploy-prod
-  - rollout-prod
+#  - build-image
+  - deploy
 
 cache:
   paths:
+    - .m2/repository
     - ${CACHE_DIR}
-    
+
+
 before_script:
   - export
-    
-    
+
+
 ################# Jobs Configure #####################
 ## 构建作业
 build:
@@ -122,188 +108,37 @@ test:
   image: ${BUILD_IMAGE}
   extends: .test
   before_script:
-    - ls 
+    - ls
     - ls ${CACHE_DIR}
 
-## 代码扫描
-code_analysis:
-  stage: parallel01
-  image: ${SONAR_IMAGE}
-  extends: .code_analysis
+## 构建docker镜像
+#build_image:
+#  image: docker:latest
+#  services:
+#    - name: docker:dind
+#  stage: build-image
+#  extends: .build-docker
 
-## 获取构建结果
-get_analysis_result:
-  image: ${CURL_IMAGE}
-  extends: .get_analysis_result
-  needs:
-    - code_analysis
-
-
-## 构建镜像
-build_image:
-  image: docker:latest
-  services:
-    - name: docker:dind
-  stage: parallel01
-  extends: .build-docker
-
-
-## 上传制品
-deploy_artifact:
-  image: ${CURL_IMAGE}
-  stage: deploy-artifact
-  extends: .deploy-artifact
-
-## 下载制品  
-#down_artifact:  
-#  image: ${CURL_IMAGE}
-#  stage: down_artifact
-#  extends: .down-artifact
-
-
-
-
-#################Deploy Feature Jobs Configure #####################
-## feature发布应用
-deploy_feature:
+## 发布
+deploy-admin:
+  stage: deploy
+  image: ${DOCKER_IMAGE}
+  extends: .deploy_docker
   variables:
-    DEPLOY_FILE: 'deployment.yaml'
-    ENV_NAME: 'feature'
-  stage: deploy-feature
-  image: ${KUBECTL_IMAGE}
-  extends: .deploy_k8s
-  environment:
-    on_stop: "rollout_feature"
+    # 镜像名称，默认使用服务名
+    IMAGE_NAME: "admin-server"
+    # 镜像版本，默认使用分支名称
+    IMAGE_TAG: "${CI_COMMIT_REF_NAME}"
+    # 容器别名，默认使用服务名+分支名
+    CONTAINER_NAME: "${IMAGE_NAME}_${CI_COMMIT_REF_NAME}"
+    # 模块路径
+    MODULE_PATH: "data-center/admin/admin-server/"
+    # docker额外选项参数
+    DOCKER_OPT: "--name ${CONTAIN_NAME}"
   rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
-      when: never
-    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
-      when: never
-    - when: manual
-    
-## 应用回滚
-rollout_feature:
-  variables:
-    DEPLOY_FILE: 'deployment.yaml'
-    ENV_NAME: 'feature'
-  stage: rollout-feature
-  image: ${KUBECTL_IMAGE}
-  extends: .rollout_k8s
-  needs:
-    - deploy_feature
-  rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
-      when: never
-    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
-      when: never
-    - when: on_failure
-
-
-#################Deploy UAT Jobs Configure #####################
-## UAT
-deploy_uat:
-  variables:
-    DEPLOY_FILE: 'config/deployment-uat.yaml'
-    ENV_NAME: 'uat'
-  stage: deploy-uat
-  image: ${KUBECTL_IMAGE}
-  extends: .deploy_k8s
-  environment:
-    on_stop: "rollout_uat"
-  rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
+    - if: $RUN_DEPLOY_DOCKER == 'no'
       when: never
     - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
       when: manual
     - when: never
 
-## UAT应用回滚
-rollout_uat:
-  variables:
-    DEPLOY_FILE: 'config/deployment-uat.yaml'
-    ENV_NAME: 'uat'
-  stage: rollout-uat
-  image: ${KUBECTL_IMAGE}
-  extends: .rollout_k8s
-  needs:
-    - deploy_uat
-  rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
-      when: never
-    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
-      when: on_failure
-    - when: never
-
-#################Deploy STAG Jobs Configure #####################
-## STAG
-deploy_stag:
-  variables:
-    DEPLOY_FILE: 'config/deployment-stag.yaml'
-    ENV_NAME: 'stag'
-  stage: deploy-stag
-  image: ${KUBECTL_IMAGE}
-  extends: .deploy_k8s
-  environment:
-    on_stop: "rollout_stag"
-  needs:
-    - deploy_uat
-  rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
-      when: never
-    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
-      when: manual
-    - when: never
-
-## STAG应用回滚
-rollout_stag:
-  variables:
-    DEPLOY_FILE: 'config/deployment-stag.yaml'
-    ENV_NAME: 'stag'
-  stage: rollout-stag
-  image: ${KUBECTL_IMAGE}
-  extends: .rollout_k8s
-  needs:
-    - deploy_stag
-  rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
-      when: never
-    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
-      when: on_failure
-    - when: never
-
-#################Deploy PROD Jobs Configure #####################
-## PROD
-deploy_prod:
-  variables:
-    DEPLOY_FILE: 'config/deployment-prod.yaml'
-    ENV_NAME: 'prod'
-  stage: deploy-prod
-  image: ${KUBECTL_IMAGE}
-  extends: .deploy_k8s
-  environment:
-    on_stop: "rollout_prod"
-  needs:
-    - deploy_stag
-  rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
-      when: never
-    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
-      when: manual
-    - when: never
-
-## PROD应用回滚
-rollout_prod:
-  variables:
-    DEPLOY_FILE: 'config/deployment-prod.yaml'
-    ENV_NAME: 'prod'
-  stage: rollout-prod
-  image: ${KUBECTL_IMAGE}
-  extends: .rollout_k8s
-  needs:
-    - deploy_prod
-  rules:
-    - if: $RUN_DEPLOY_K8S == 'no'
-      when: never
-    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
-      when: on_failure
-    - when: never

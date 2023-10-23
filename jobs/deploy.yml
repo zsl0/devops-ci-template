@@ -1,5 +1,21 @@
 ## 应用发布
 
+## 使用docker发布
+.deploy_docker:
+  stage: deploy
+  script:
+    - docker stop ${CONTAINER_NAME}
+    - docker rm ${CONTAINER_NAME}
+    # 运行docker容器
+    - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${MODULE_PATH}/Dockerfile
+    - docker run -d ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_OPT} ${CONTAINER_NAME}
+    - echo "docker 容器 '${CONTAINER_NAME}' 运行完成!"
+  rules:
+    - if: " $RUN_DEPLOY_DOCKER == 'no'"
+      when: never
+    - when: manual
+
+
 
 ## 使用kubectl镜像发布
 .deploy_k8s:
