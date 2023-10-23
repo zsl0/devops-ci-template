@@ -4,7 +4,7 @@
 .deploy_docker:
   stage: deploy
   script:
-    - if [ $(docker ps -a | grep ${CONTAINER_NAME} | wc -l) -ge 1 ]; then docker rm -f ${CONTAINER_NAME};
+    - if [ $(docker ps -a | grep ${CONTAINER_NAME} | wc -l) -ge 1 ]; then docker rm -f ${CONTAINER_NAME}; fi
     # 运行docker容器
     - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${MODULE_PATH}/Dockerfile
     - docker run -d ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_OPT} ${CONTAINER_NAME}
