@@ -11,7 +11,7 @@
       fi
     # 运行docker容器
     - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${MODULE_PATH}
-    - docker run -d ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_OPT} ${CONTAINER_NAME}
+    - docker run -d ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_OPT}
     - echo "docker 容器 '${CONTAINER_NAME}' 运行完成!"
   rules:
     - if: " $RUN_DEPLOY_DOCKER == 'no'"
