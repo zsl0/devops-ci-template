@@ -3,9 +3,8 @@
 
 .build:
   stage: build
-  script: 
-    - |
-      ${BUILD_SHELL}
+  script:
+    - ${BUILD_SHELL}
   variables:
     GIT_CHECKOUT: "true"
   rules:

@@ -4,19 +4,40 @@
 .deploy_docker:
   stage: deploy
   script:
-    - |
-      if [ $(docker ps -a | grep ${CONTAINER_NAME} | wc -l) -ge 1 ]
-      then 
-        docker rm -f ${CONTAINER_NAME}
-      fi
+    - if [ $(docker ps -a | grep ${CONTAINER_NAME} | wc -l) -ge 1 ]; then docker rm -f ${CONTAINER_NAME}; echo '删除正在运行的容器 ${CONTAINER_NAME};'; fi
+    # 根据模版修改jar服务Dockerfile
+    - scp ./Dockerfile_template ./${DOCKERFILE_NAME}
+    - sed -i "s#MODULE_PATH#${MODULE_PATH}#g" ./${DOCKERFILE_NAME}
+    - sed -i "s#JAR_NAME#${JAR_NAME}#g" ./${DOCKERFILE_NAME}
+    - echo "输出格式化后的Dockerfile名称：${DOCKERFILE_NAME}" && cat ./${DOCKERFILE_NAME}
     # 运行docker容器
-    - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ${MODULE_PATH}
-    - docker run -d ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_OPT}
+    - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f ./${DOCKERFILE_NAME} .
+    - docker run ${DOCKER_OPT} -d ${IMAGE_NAME}:${IMAGE_TAG}
     - echo "docker 容器 '${CONTAINER_NAME}' 运行完成!"
+  variables:
+    # 镜像名称，默认使用服务名
+    IMAGE_NAME: "gateway"
+    # 模块路径
+    MODULE_PATH: "data-center/gateway/"
+    # jar包名称
+    JAR_NAME: "gateway.jar"
+
+    # 格式化后的Dockerfile名称
+    DOCKERFILE_NAME: Dockerfile_${IMAGE_NAME}
+    # 镜像版本，默认使用分支名称
+    IMAGE_TAG: "${CI_COMMIT_REF_NAME}"
+    # 容器别名，默认使用服务名+分支名
+    CONTAINER_NAME: "${IMAGE_NAME}_${CI_COMMIT_REF_NAME}"
+    # docker额外选项参数
+    DOCKER_OPT: "--name ${CONTAINER_NAME}"
   rules:
-    - if: " $RUN_DEPLOY_DOCKER == 'no'"
+    - if: $RUN_DEPLOY_DOCKER == 'no'
       when: never
-    - when: manual
+    - if: $CI_COMMIT_REF_NAME =~ /^RELEASE-*/ || $CI_COMMIT_REF_NAME =~ /master/ || $CI_COMMIT_TAG
+      when: manual
+    - if: $CI_COMMIT_REF_NAME =~ /develop/
+      when: on_success
+    - when: never
 
 
 
