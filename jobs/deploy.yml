@@ -3,6 +3,7 @@
 ## 使用docker发布
 .deploy_docker:
   stage: deploy
+  retry: 2
   script:
     - if [ $(docker ps -a | grep ${CONTAINER_NAME} | wc -l) -ge 1 ]; then docker rm -f ${CONTAINER_NAME}; echo '删除正在运行的容器 ${CONTAINER_NAME};'; fi
     # 根据模版修改jar服务Dockerfile

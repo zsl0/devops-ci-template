@@ -3,6 +3,7 @@
 
 .build:
   stage: build
+  retry: 2
   script:
     - ${BUILD_SHELL}
   variables:
