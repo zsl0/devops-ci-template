@@ -89,7 +89,6 @@ stages:
 
 cache:
   paths:
-    - ~/.m2/repository
     - ${CACHE_DIR}
 
 
